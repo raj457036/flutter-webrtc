@@ -136,14 +136,10 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       return;
     }
 
-    PeerConnectionFactory.initialize(
-            InitializationOptions.builder(context)
-                    .setEnableInternalTracer(true)
-                    .createInitializationOptions());
+    PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions());
 
-    // Initialize EGL contexts required for HW acceleration.
+    PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
     EglBase.Context eglContext = EglUtils.getRootEglBaseContext();
-
     getUserMediaImpl = new GetUserMediaImpl(this, context);
 
     audioDeviceModule = JavaAudioDeviceModule.builder(context)
@@ -152,12 +148,14 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
             .setSamplesReadyCallback(getUserMediaImpl.inputSamplesInterceptor)
             .createAudioDeviceModule();
 
-    getUserMediaImpl.audioDeviceModule = (JavaAudioDeviceModule) audioDeviceModule;
+    DefaultVideoEncoderFactory defaultVideoEncoderFactory = new DefaultVideoEncoderFactory(
+        eglContext,  /* enableIntelVp8Encoder */true,  /* enableH264HighProfile */true);
+    DefaultVideoDecoderFactory defaultVideoDecoderFactory = new DefaultVideoDecoderFactory(eglContext);
 
     mFactory = PeerConnectionFactory.builder()
-            .setOptions(new Options())
-            .setVideoEncoderFactory(new SimulcastVideoEncoderFactoryWrapper(eglContext, true, false))
-            .setVideoDecoderFactory(new DefaultVideoDecoderFactory(eglContext))
+            .setVideoEncoderFactory(defaultVideoEncoderFactory)
+            .setVideoDecoderFactory(defaultVideoDecoderFactory)
+            .setOptions(options)
             .setAudioDeviceModule(audioDeviceModule)
             .createPeerConnectionFactory();
   }
